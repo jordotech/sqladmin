@@ -43,6 +43,7 @@ from sqladmin.fields import (
     QuerySelectMultipleField,
     SelectField,
 )
+from sqladmin.types import _MODEL_ATTR_TYPE
 
 
 class Validator(Protocol):
@@ -57,7 +58,7 @@ class ConverterCallable(Protocol):
     def __call__(
         self,
         model: type,
-        prop: Union[ColumnProperty, RelationshipProperty],
+        prop: _MODEL_ATTR_TYPE,
         kwargs: Dict[str, Any],
     ) -> UnboundField:
         ...  # pragma: no cover
@@ -95,7 +96,7 @@ class ModelConverterBase:
 
     async def _prepare_kwargs(
         self,
-        prop: Union[ColumnProperty, RelationshipProperty],
+        prop: _MODEL_ATTR_TYPE,
         engine: Union[Engine, AsyncEngine],
         field_args: Dict[str, Any],
         field_widget_args: Dict[str, Any],
@@ -165,7 +166,7 @@ class ModelConverterBase:
 
     async def _prepare_object_list(
         self,
-        prop: Union[ColumnProperty, RelationshipProperty],
+        prop: _MODEL_ATTR_TYPE,
         engine: Union[Engine, AsyncEngine],
     ) -> List[Tuple[str, object]]:
         target_model = prop.mapper.class_
@@ -187,9 +188,7 @@ class ModelConverterBase:
 
         return object_list
 
-    def get_converter(
-        self, prop: Union[ColumnProperty, RelationshipProperty]
-    ) -> ConverterCallable:
+    def get_converter(self, prop: _MODEL_ATTR_TYPE) -> ConverterCallable:
         if not isinstance(prop, ColumnProperty):
             name = prop.direction.name
             if name == "ONETOMANY" and not prop.uselist:
@@ -228,7 +227,7 @@ class ModelConverterBase:
     async def convert(
         self,
         model: type,
-        prop: Union[ColumnProperty, RelationshipProperty],
+        prop: _MODEL_ATTR_TYPE,
         engine: Union[Engine, AsyncEngine],
         field_args: Dict[str, Any],
         field_widget_args: Dict[str, Any],
@@ -395,19 +394,25 @@ class ModelConverter(ModelConverterBase):
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.url.URLType")
-    def conv_url(self, model: type, prop: ColumnProperty, kwargs: Dict[str, Any]):
+    def conv_url(
+        self, model: type, prop: ColumnProperty, kwargs: Dict[str, Any]
+    ) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(validators.URL())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.currency.CurrencyType")
-    def conv_currency(self, model: type, prop: ColumnProperty, kwargs: Dict[str, Any]):
+    def conv_currency(
+        self, model: type, prop: ColumnProperty, kwargs: Dict[str, Any]
+    ) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(CurrencyValidator())
         return StringField(**kwargs)
 
     @converts("sqlalchemy_utils.types.timezone.TimezoneType")
-    def conv_timezone(self, model: type, prop: ColumnProperty, kwargs: Dict[str, Any]):
+    def conv_timezone(
+        self, model: type, prop: ColumnProperty, kwargs: Dict[str, Any]
+    ) -> UnboundField:
         kwargs.setdefault("validators", [])
         kwargs["validators"].append(
             TimezoneValidator(coerce_function=prop.columns[0].type._coerce)
@@ -443,7 +448,7 @@ async def get_model_form(
     form_args: Dict[str, Dict[str, Any]] = None,
     form_widget_args: Dict[str, Dict[str, Any]] = None,
     form_class: Type[Form] = Form,
-    form_overrides: Dict[str, Dict[str, Type[Field]]] = None,
+    form_overrides: Dict[str, Type[Field]] = None,
     form_include_pk: bool = False,
 ) -> Type[Form]:
     type_name = model.__name__ + "Form"
